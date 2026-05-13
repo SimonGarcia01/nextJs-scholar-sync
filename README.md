@@ -1,0 +1,1 @@
+# nextJs-scholar-sync
