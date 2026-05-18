@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Home() {
     return (
-        <div className="flex flex-col flex-1 bg-[var(--blue-50)] font-sans min-h-screen">
+        <div className="flex flex-col flex-1 bg-(--blue-50) font-sans min-h-screen">
             <main className="flex-1">
                 <section className="max-w-6xl mx-auto px-6 py-16 grid gap-10 md:grid-cols-2 items-center">
                     <div>

@@ -48,7 +48,7 @@ export default function RootLayout({
                     </div>
                 </header>
                 <main className="flex-1">{children}</main>
-                <footer className="w-full border-t border-black/[.06] py-6">
+                <footer className="w-full border-t border-black/6 py-6">
                     <div className="max-w-6xl mx-auto px-6 text-sm text-slate-600">
                         © {new Date().getFullYear()} Scholar Sync
                     </div>
