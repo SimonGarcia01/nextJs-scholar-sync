@@ -22,7 +22,7 @@ export default function LoginPage() {
         try {
             const response = await authService.login({ email, password });
             setToken(response.access_token);
-            router.push("/");
+            router.push("/dashboard");
         } catch (err) {
             setError("Credenciales invalidas o usuario no encontrado.");
             console.log("Login error:", err);
