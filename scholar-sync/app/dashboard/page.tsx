@@ -1,16 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import Sidebar, { SidebarItemData } from "@/components/dashboard/Sidebar";
 import UsersTab from "@/components/dashboard/tabs/UsersTab";
 import RolesTab from "@/components/dashboard/tabs/RolesTab";
 import PermissionsTab from "@/components/dashboard/tabs/PermissionsTab";
-import RolesPermissionsTab from "@/components/dashboard/tabs/RolesPermissionsTab";
-import UserRolesTab from "@/components/dashboard/tabs/UserRolesTab";
 import CoursesTab from "@/components/dashboard/tabs/CoursesTab";
-import UserCoursesTab from "@/components/dashboard/tabs/UserCoursesTab";
 import SupplementarySessionsTab from "@/components/dashboard/tabs/SupplementarySessionsTab";
-import AttendanceSuppSessionsTab from "@/components/dashboard/tabs/AttendanceSuppSessionsTab";
 import ExperienceBadgesTab from "@/components/dashboard/tabs/ExperienceBadgesTab";
 import UserBadgesTab from "@/components/dashboard/tabs/UserBadgesTab";
 import PostsTab from "@/components/dashboard/tabs/PostsTab";
@@ -18,7 +14,10 @@ import RepliesTab from "@/components/dashboard/tabs/RepliesTab";
 import { MenuIcon } from "@/components/dashboard/Icons";
 import apiService from "@/lib/apiService";
 import useAuthStore from "@/_store/authStore";
-import type { EntityTabProps } from "@/components/dashboard/tabs/types";
+import type {
+    EntityTabProps,
+    TabRows,
+} from "@/components/dashboard/tabs/types";
 import {
     buildPermissionsIndex,
     hasAnyPermissionForEntity,
@@ -30,7 +29,205 @@ type TabConfig = {
     label: string;
     entity: string;
     endpoint: string;
-    rows: (Record<string, string | number> & { id: string | number })[];
+    mapRow: (item: ApiRecord, index: number) => TabRowData;
+};
+
+type TabRowData = Record<string, string | number> & { id: string | number };
+
+type ApiRecord = Record<string, unknown>;
+
+type TabState = {
+    rows: TabRows;
+    error: string | null;
+    loaded: boolean;
+};
+
+const resolveId = (item: Record<string, unknown>, fallback: number) => {
+    const id = item.id ?? item._id ?? fallback;
+    return typeof id === "string" || typeof id === "number" ? id : fallback;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+};
+
+const toArray = (value: unknown): unknown[] => {
+    return Array.isArray(value) ? value : [];
+};
+
+const collectLabels = (
+    items: unknown,
+    getter: (item: Record<string, unknown>) => unknown
+) => {
+    const labels = toArray(items)
+        .map((item) => (isRecord(item) ? toLabel(getter(item)) : null))
+        .filter(
+            (label): label is string | number => label !== null && label !== ""
+        )
+        .map((label) => String(label));
+
+    return labels.length ? labels.join(", ") : null;
+};
+
+const getProp = (value: unknown, key: string) => {
+    if (!isRecord(value)) {
+        return undefined;
+    }
+
+    return value[key];
+};
+
+const combineName = (first: unknown, last: unknown) => {
+    const firstName = typeof first === "string" ? first.trim() : "";
+    const lastName = typeof last === "string" ? last.trim() : "";
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName ? fullName : null;
+};
+
+const getObjectLabel = (value: Record<string, unknown>) => {
+    const fullName = combineName(
+        getProp(value, "firstName"),
+        getProp(value, "lastName")
+    );
+    if (fullName) {
+        return fullName;
+    }
+    if (typeof value.name === "string") {
+        return value.name;
+    }
+    if (typeof value.email === "string") {
+        return value.email;
+    }
+    if (typeof value.title === "string") {
+        return value.title;
+    }
+    return null;
+};
+
+const toLabel = (value: unknown): string | number | null => {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (typeof value === "string") {
+        return value.trim() ? value : null;
+    }
+    if (typeof value === "number") {
+        return value;
+    }
+    if (Array.isArray(value)) {
+        const labels = value
+            .map((item) => {
+                if (typeof item === "string" || typeof item === "number") {
+                    return String(item);
+                }
+                if (item && typeof item === "object") {
+                    return getObjectLabel(item as Record<string, unknown>);
+                }
+                return null;
+            })
+            .filter(Boolean) as string[];
+
+        return labels.length ? labels.join(", ") : null;
+    }
+    if (typeof value === "object") {
+        return getObjectLabel(value as Record<string, unknown>);
+    }
+    return null;
+};
+
+const pickValue = (...values: unknown[]) => {
+    for (const value of values) {
+        const label = toLabel(value);
+        if (label !== null && label !== "") {
+            return label;
+        }
+    }
+    return "-";
+};
+
+const formatDate = (value: unknown) => {
+    if (value === null || value === undefined || value === "") {
+        return "-";
+    }
+
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    return date.toLocaleDateString("es-CO", {
+        year: "numeric",
+        month: "short",
+        day: "2-digit",
+    });
+};
+
+const booleanLabel = (value: unknown) => {
+    if (typeof value === "boolean") {
+        return value ? "Si" : "No";
+    }
+    if (typeof value === "string") {
+        const normalized = value.toLowerCase();
+        if (normalized === "true") {
+            return "Si";
+        }
+        if (normalized === "false") {
+            return "No";
+        }
+    }
+    return pickValue(value);
+};
+
+const statusFromFlag = (
+    value: unknown,
+    whenTrue: string,
+    whenFalse: string
+) => {
+    if (typeof value === "boolean") {
+        return value ? whenTrue : whenFalse;
+    }
+    return null;
+};
+
+const normalizeLabel = (value: unknown) => {
+    const label = toLabel(value);
+    return label === null || label === "" ? null : String(label);
+};
+
+const getPersonLabel = (value: unknown) => {
+    if (!isRecord(value)) {
+        return null;
+    }
+
+    return normalizeLabel(getObjectLabel(value));
+};
+
+const formatAttendanceEntry = (entry: Record<string, unknown>) => {
+    const studentLabel =
+        getPersonLabel(getProp(entry, "student")) ??
+        getPersonLabel(getProp(entry, "user"));
+    const taLabel = getPersonLabel(getProp(entry, "ta"));
+
+    if (studentLabel && taLabel) {
+        return `${studentLabel} (TA: ${taLabel})`;
+    }
+
+    return studentLabel ?? taLabel;
+};
+
+const formatCourseUser = (entry: Record<string, unknown>) => {
+    const name = normalizeLabel(
+        combineName(getProp(entry, "firstName"), getProp(entry, "lastName")) ??
+            getProp(entry, "name") ??
+            getProp(entry, "email")
+    );
+    const relation = normalizeLabel(getProp(entry, "relationType"));
+
+    if (name && relation) {
+        return `${name} (${relation})`;
+    }
+
+    return name ?? relation;
 };
 
 const tabs: TabConfig[] = [
@@ -39,275 +236,224 @@ const tabs: TabConfig[] = [
         label: "Usuarios",
         entity: "users",
         endpoint: "/user",
-        rows: [
-            {
-                id: 1,
-                Nombre: "Alice Smith",
-                Email: "alice@example.com",
-                Rol: "Student",
-                Nivel: 2,
-            },
-            {
-                id: 2,
-                Nombre: "Dave Admin",
-                Email: "dave@example.com",
-                Rol: "Admin",
-                Nivel: 5,
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Nombre: pickValue(
+                    combineName(
+                        getProp(data, "firstName"),
+                        getProp(data, "lastName")
+                    ),
+                    data.name,
+                    data.fullName,
+                    data.username,
+                    data.email
+                ),
+                Email: pickValue(data.email),
+                Roles: pickValue(
+                    data.roles,
+                    collectLabels(data.userRoles, (entry) =>
+                        getProp(entry, "role")
+                    ),
+                    data.role,
+                    getProp(data.role, "name")
+                ),
+                Nivel: pickValue(data.level, data.academicLevel, data.semester),
+            };
+        },
     },
     {
         id: "roles",
         label: "Roles",
         entity: "roles",
         endpoint: "/role",
-        rows: [
-            {
-                id: 3,
-                Rol: "Admin",
-                Descripcion: "Acceso total",
-            },
-            {
-                id: 4,
-                Rol: "Student",
-                Descripcion: "Acceso de lectura",
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Rol: pickValue(data.name, data.role),
+                Descripcion: pickValue(data.description, data.descripcion),
+                Permisos: pickValue(
+                    data.permissions,
+                    collectLabels(data.rolesPermissions, (entry) =>
+                        getProp(entry, "permission")
+                    ),
+                    collectLabels(data.rolePermissions, (entry) =>
+                        getProp(entry, "permission")
+                    )
+                ),
+            };
+        },
     },
     {
         id: "permissions",
         label: "Permisos",
         entity: "permissions",
         endpoint: "/permission",
-        rows: [
-            {
-                id: 5,
-                Nombre: "Read users",
-                Descripcion: "Can read users",
-            },
-            {
-                id: 6,
-                Nombre: "Create courses",
-                Descripcion: "Can create courses",
-            },
-        ],
-    },
-    {
-        id: "roles_permissions",
-        label: "Roles permisos",
-        entity: "roles_permissions",
-        endpoint: "/role-permission",
-        rows: [
-            {
-                id: 7,
-                Rol: "Admin",
-                Permiso: "Create users",
-            },
-            {
-                id: 8,
-                Rol: "Student",
-                Permiso: "Read posts",
-            },
-        ],
-    },
-    {
-        id: "user_roles",
-        label: "Usuarios roles",
-        entity: "user_roles",
-        endpoint: "/user-role",
-        rows: [
-            {
-                id: 9,
-                Usuario: "dave@example.com",
-                Rol: "Admin",
-            },
-            {
-                id: 10,
-                Usuario: "alice@example.com",
-                Rol: "Student",
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Nombre: pickValue(data.name, data.permission, data.action),
+                Descripcion: pickValue(data.description, data.descripcion),
+            };
+        },
     },
     {
         id: "courses",
         label: "Cursos",
         entity: "courses",
         endpoint: "/courses",
-        rows: [
-            {
-                id: 11,
-                Nombre: "Intro SE",
-                Creditos: 3,
-                Duracion: 16,
-                Inicio: "2026-08-01",
-            },
-            {
-                id: 12,
-                Nombre: "Physics I",
-                Creditos: 4,
-                Duracion: 16,
-                Inicio: "2026-08-01",
-            },
-        ],
-    },
-    {
-        id: "user_courses",
-        label: "Usuarios cursos",
-        entity: "user_courses",
-        endpoint: "/user-course",
-        rows: [
-            {
-                id: 13,
-                Usuario: "alice@example.com",
-                Curso: "Intro SE",
-                Tipo: "student",
-            },
-            {
-                id: 14,
-                Usuario: "bob@example.com",
-                Curso: "Physics I",
-                Tipo: "student",
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Nombre: pickValue(data.name, data.title),
+                Creditos: pickValue(data.credits, data.credit),
+                Duracion: pickValue(data.duration, data.weeks),
+                Inicio: formatDate(data.startDate ?? data.start),
+                Usuarios: pickValue(
+                    collectLabels(data.users, (entry) =>
+                        isRecord(entry) ? formatCourseUser(entry) : null
+                    ),
+                    collectLabels(data.userCourses, (entry) =>
+                        getProp(entry, "user")
+                    ),
+                    data.users,
+                    data.students,
+                    data.participants
+                ),
+            };
+        },
     },
     {
         id: "supplementary_sessions",
         label: "Sesiones apoyo",
         entity: "supplementary_sessions",
         endpoint: "/supplementary-sessions",
-        rows: [
-            {
-                id: 15,
-                Tema: "Algebra",
-                Fecha: "2026-05-01",
-                Virtual: "Si",
-                Estado: "Pendiente",
-            },
-            {
-                id: 16,
-                Tema: "Calculo",
-                Fecha: "2026-05-02",
-                Virtual: "No",
-                Estado: "Confirmada",
-            },
-        ],
-    },
-    {
-        id: "attendance_supp_sessions",
-        label: "Asistencias",
-        entity: "attendance_supp_sessions",
-        endpoint: "/attendance-supp-session",
-        rows: [
-            {
-                id: 17,
-                Sesion: "Algebra",
-                TA: "dave@example.com",
-                Estudiante: "alice@example.com",
-                Notas: "A tiempo",
-            },
-            {
-                id: 18,
-                Sesion: "Calculo",
-                TA: "carol@example.com",
-                Estudiante: "bob@example.com",
-                Notas: "Tarde",
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            const status = statusFromFlag(
+                data.completed,
+                "Completada",
+                "Pendiente"
+            );
+            return {
+                id: resolveId(data, index),
+                Tema: pickValue(data.topic, data.theme, data.name),
+                Fecha: formatDate(data.requestedDate ?? data.date),
+                Virtual: booleanLabel(data.virtual),
+                Estado: pickValue(data.status, status),
+                Asistentes: pickValue(
+                    collectLabels(data.attendees, (entry) =>
+                        isRecord(entry) ? formatAttendanceEntry(entry) : null
+                    ),
+                    collectLabels(data.attendanceRecords, (entry) =>
+                        isRecord(entry) ? formatAttendanceEntry(entry) : null
+                    )
+                ),
+            };
+        },
     },
     {
         id: "experience_badges",
         label: "Insignias",
         entity: "experience_badges",
         endpoint: "/experience-badge",
-        rows: [
-            {
-                id: 19,
-                Insignia: "Novice",
-                Nivel: 1,
-                Mensaje: "Welcome rookie",
-            },
-            {
-                id: 20,
-                Insignia: "Intermediate",
-                Nivel: 3,
-                Mensaje: "Keep going",
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Insignia: pickValue(data.name, data.title),
+                Nivel: pickValue(data.minLevel, data.level),
+                Mensaje: pickValue(data.message),
+            };
+        },
     },
     {
         id: "user_badges",
         label: "Usuarios insignias",
         entity: "user_badges",
         endpoint: "/user-badge",
-        rows: [
-            {
-                id: 21,
-                Usuario: "alice@example.com",
-                Insignia: "Novice",
-                Fecha: "2026-04-26",
-            },
-            {
-                id: 22,
-                Usuario: "bob@example.com",
-                Insignia: "Intermediate",
-                Fecha: "2026-04-30",
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Usuario: pickValue(
+                    getProp(data.user, "email"),
+                    getProp(data.user, "name"),
+                    data.userEmail
+                ),
+                Insignia: pickValue(
+                    getProp(data.experienceBadge, "name"),
+                    getProp(data.badge, "name"),
+                    data.badgeName
+                ),
+                Fecha: formatDate(data.dateAcquired),
+            };
+        },
     },
     {
         id: "posts",
         label: "Posts",
         entity: "posts",
         endpoint: "/post",
-        rows: [
-            {
-                id: 23,
-                Titulo: "Help with homework",
-                Autor: "alice@example.com",
-                Respuestas: 3,
-            },
-            {
-                id: 24,
-                Titulo: "Derivadas",
-                Autor: "bob@example.com",
-                Respuestas: 1,
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            const repliesCount =
+                typeof data.repliesCount === "number"
+                    ? data.repliesCount
+                    : Array.isArray(data.replies)
+                      ? data.replies.length
+                      : data.replies;
+            return {
+                id: resolveId(data, index),
+                Titulo: pickValue(data.title, data.question),
+                Autor: pickValue(
+                    getProp(data.user, "email"),
+                    getProp(data.user, "name"),
+                    data.userEmail,
+                    data.author
+                ),
+                Respuestas: pickValue(repliesCount),
+            };
+        },
     },
     {
         id: "replies",
         label: "Respuestas",
         entity: "replies",
         endpoint: "/reply",
-        rows: [
-            {
-                id: 25,
-                Post: "Help with homework",
-                Autor: "carol@example.com",
-                Aprobaciones: 1,
-                Estado: "Pendiente",
-            },
-            {
-                id: 26,
-                Post: "Derivadas",
-                Autor: "bob@example.com",
-                Aprobaciones: 3,
-                Estado: "Aprobada",
-            },
-        ],
+        mapRow: (item, index) => {
+            const data = item;
+            const status = statusFromFlag(
+                data.validated,
+                "Aprobada",
+                "Pendiente"
+            );
+            return {
+                id: resolveId(data, index),
+                Post: pickValue(getProp(data.post, "title"), data.postTitle),
+                Autor: pickValue(
+                    getProp(data.user, "email"),
+                    getProp(data.user, "name"),
+                    data.userEmail,
+                    data.author
+                ),
+                Aprobaciones: pickValue(data.approvals, data.likes),
+                Estado: pickValue(data.status, status),
+            };
+        },
     },
 ];
 
-const tabComponents: Record<string, (props: EntityTabProps) => JSX.Element> = {
+const tabComponents: Record<string, (props: EntityTabProps) => ReactElement> = {
     users: UsersTab,
     roles: RolesTab,
     permissions: PermissionsTab,
-    roles_permissions: RolesPermissionsTab,
-    user_roles: UserRolesTab,
     courses: CoursesTab,
-    user_courses: UserCoursesTab,
     supplementary_sessions: SupplementarySessionsTab,
-    attendance_supp_sessions: AttendanceSuppSessionsTab,
     experience_badges: ExperienceBadgesTab,
     user_badges: UserBadgesTab,
     posts: PostsTab,
@@ -322,8 +468,13 @@ export default function DashboardPage() {
     );
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [tabRows, setTabRows] = useState(() =>
-        Object.fromEntries(tabs.map((tab) => [tab.id, tab.rows]))
+    const [tabState, setTabState] = useState<Record<string, TabState>>(() =>
+        Object.fromEntries(
+            tabs.map((tab) => [
+                tab.id,
+                { rows: [], error: null, loaded: false },
+            ])
+        )
     );
 
     const availableTabs = useMemo(() => {
@@ -360,6 +511,61 @@ export default function DashboardPage() {
         action: "create" | "read" | "update" | "delete"
     ) => hasPermissionForEntity(permissionsIndex, entity, action);
 
+    const selectedTabState = selectedTab ? tabState[selectedTab.id] : undefined;
+    const canRead = selectedTab ? can(selectedTab.entity, "read") : false;
+
+    useEffect(() => {
+        if (!selectedTab || !canRead) {
+            return;
+        }
+
+        if (selectedTabState?.loaded) {
+            return;
+        }
+
+        let isActive = true;
+
+        apiService
+            .get<Record<string, unknown>[]>(selectedTab.endpoint)
+            .then((data) => {
+                if (!isActive) {
+                    return;
+                }
+
+                const items = Array.isArray(data) ? data : [];
+                const rows = items.map((item, index) =>
+                    selectedTab.mapRow(item ?? {}, index)
+                );
+
+                setTabState((prev) => ({
+                    ...prev,
+                    [selectedTab.id]: {
+                        rows,
+                        error: null,
+                        loaded: true,
+                    },
+                }));
+            })
+            .catch(() => {
+                if (!isActive) {
+                    return;
+                }
+
+                setTabState((prev) => ({
+                    ...prev,
+                    [selectedTab.id]: {
+                        ...prev[selectedTab.id],
+                        error: "No se pudo cargar la informacion.",
+                        loaded: true,
+                    },
+                }));
+            });
+
+        return () => {
+            isActive = false;
+        };
+    }, [selectedTab, canRead, selectedTabState?.loaded]);
+
     const handleDelete = async (tabId: string, rowId: string | number) => {
         const tab = tabs.find((item) => item.id === tabId);
         if (!tab) {
@@ -367,9 +573,12 @@ export default function DashboardPage() {
         }
 
         await apiService.delete(`${tab.endpoint}/${rowId}`);
-        setTabRows((prev) => ({
+        setTabState((prev) => ({
             ...prev,
-            [tabId]: prev[tabId].filter((row) => row.id !== rowId),
+            [tabId]: {
+                ...prev[tabId],
+                rows: prev[tabId].rows.filter((row) => row.id !== rowId),
+            },
         }));
     };
 
@@ -384,7 +593,11 @@ export default function DashboardPage() {
             );
         }
 
-        const rows = tabRows[selectedTab.id] ?? [];
+        const rows = selectedTabState?.rows ?? [];
+        const isLoading = canRead && !(selectedTabState?.loaded ?? false);
+        const emptyMessage = !canRead
+            ? "No tienes permiso para ver estos registros."
+            : (selectedTabState?.error ?? "Sin registros por ahora.");
         const canCreate = can(selectedTab.entity, "create");
         const canUpdate = can(selectedTab.entity, "update");
         const canDelete = can(selectedTab.entity, "delete");
@@ -401,12 +614,14 @@ export default function DashboardPage() {
                 canUpdate={canUpdate}
                 canDelete={canDelete}
                 onDelete={(rowId) => handleDelete(selectedTab.id, rowId)}
+                isLoading={isLoading}
+                emptyMessage={emptyMessage}
             />
         );
     };
 
     return (
-        <div className="min-h-screen bg-[var(--blue-50)]">
+        <div className="min-h-screen bg-(--blue-50)">
             <div className="flex">
                 <Sidebar
                     isOpen={sidebarOpen}
@@ -427,7 +642,7 @@ export default function DashboardPage() {
                         sidebarCollapsed ? "md:ml-20" : "md:ml-64"
                     }`}
                 >
-                    <header className="sticky top-0 z-10 bg-[var(--blue-50)]/90 backdrop-blur border-b border-slate-200">
+                    <header className="sticky top-0 z-10 bg-(--blue-50)/90 backdrop-blur border-b border-slate-200">
                         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
                             <button
                                 type="button"

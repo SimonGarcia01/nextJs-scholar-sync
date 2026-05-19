@@ -7,17 +7,21 @@ export default function UsersTab({
     canUpdate,
     canDelete,
     onDelete,
+    isLoading,
+    emptyMessage,
 }: EntityTabProps) {
     return (
         <TablePanel
             title="Usuarios"
             description="Listado general de estudiantes y docentes."
-            columns={["Nombre", "Email", "Rol", "Nivel"]}
+            columns={["Nombre", "Email", "Roles", "Nivel"]}
             rows={rows}
             canCreate={canCreate}
             canUpdate={canUpdate}
             canDelete={canDelete}
             onDelete={onDelete}
+            isLoading={isLoading}
+            emptyMessage={emptyMessage}
         />
     );
 }

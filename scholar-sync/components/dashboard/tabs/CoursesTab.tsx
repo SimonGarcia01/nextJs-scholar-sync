@@ -7,17 +7,21 @@ export default function CoursesTab({
     canUpdate,
     canDelete,
     onDelete,
+    isLoading,
+    emptyMessage,
 }: EntityTabProps) {
     return (
         <TablePanel
             title="Cursos"
             description="Materias activas del semestre."
-            columns={["Nombre", "Creditos", "Duracion", "Inicio"]}
+            columns={["Nombre", "Creditos", "Duracion", "Inicio", "Usuarios"]}
             rows={rows}
             canCreate={canCreate}
             canUpdate={canUpdate}
             canDelete={canDelete}
             onDelete={onDelete}
+            isLoading={isLoading}
+            emptyMessage={emptyMessage}
         />
     );
 }

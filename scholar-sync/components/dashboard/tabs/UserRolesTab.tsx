@@ -7,6 +7,8 @@ export default function UserRolesTab({
     canUpdate,
     canDelete,
     onDelete,
+    isLoading,
+    emptyMessage,
 }: EntityTabProps) {
     return (
         <TablePanel
@@ -18,6 +20,8 @@ export default function UserRolesTab({
             canUpdate={canUpdate}
             canDelete={canDelete}
             onDelete={onDelete}
+            isLoading={isLoading}
+            emptyMessage={emptyMessage}
         />
     );
 }

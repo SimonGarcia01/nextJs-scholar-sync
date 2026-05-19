@@ -7,6 +7,8 @@ export default function AttendanceSuppSessionsTab({
     canUpdate,
     canDelete,
     onDelete,
+    isLoading,
+    emptyMessage,
 }: EntityTabProps) {
     return (
         <TablePanel
@@ -18,6 +20,8 @@ export default function AttendanceSuppSessionsTab({
             canUpdate={canUpdate}
             canDelete={canDelete}
             onDelete={onDelete}
+            isLoading={isLoading}
+            emptyMessage={emptyMessage}
         />
     );
 }

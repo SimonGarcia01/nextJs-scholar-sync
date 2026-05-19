@@ -7,17 +7,21 @@ export default function RolesTab({
     canUpdate,
     canDelete,
     onDelete,
+    isLoading,
+    emptyMessage,
 }: EntityTabProps) {
     return (
         <TablePanel
             title="Roles"
             description="Control de acceso del sistema."
-            columns={["Rol", "Descripcion"]}
+            columns={["Rol", "Descripcion", "Permisos"]}
             rows={rows}
             canCreate={canCreate}
             canUpdate={canUpdate}
             canDelete={canDelete}
             onDelete={onDelete}
+            isLoading={isLoading}
+            emptyMessage={emptyMessage}
         />
     );
 }

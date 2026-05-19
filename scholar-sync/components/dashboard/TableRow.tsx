@@ -13,6 +13,8 @@ export default function TableRow({
     canDelete,
     onDelete,
 }: TableRowProps) {
+    const updateDisabled = !canUpdate;
+    const deleteDisabled = !canDelete;
     return (
         <tr className="text-slate-700">
             {columns.map((column) => (
@@ -20,29 +22,39 @@ export default function TableRow({
                     {row[column] ?? "-"}
                 </td>
             ))}
-            {(canUpdate || canDelete) && (
-                <td className="px-6 py-3">
-                    <div className="flex items-center gap-2">
-                        {canUpdate && (
-                            <button
-                                type="button"
-                                className="rounded-md border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                            >
-                                Editar
-                            </button>
-                        )}
-                        {canDelete && (
-                            <button
-                                type="button"
-                                onClick={() => onDelete?.(row.id)}
-                                className="rounded-md border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
-                            >
-                                Eliminar
-                            </button>
-                        )}
-                    </div>
-                </td>
-            )}
+            <td className="px-6 py-3">
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        disabled={updateDisabled}
+                        aria-disabled={updateDisabled}
+                        className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${
+                            updateDisabled
+                                ? "border-slate-200 text-slate-300 bg-slate-100 cursor-not-allowed"
+                                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                    >
+                        Editar
+                    </button>
+                    <button
+                        type="button"
+                        disabled={deleteDisabled}
+                        aria-disabled={deleteDisabled}
+                        onClick={() => {
+                            if (!deleteDisabled) {
+                                onDelete?.(row.id);
+                            }
+                        }}
+                        className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${
+                            deleteDisabled
+                                ? "border-slate-200 text-slate-300 bg-slate-100 cursor-not-allowed"
+                                : "border-red-200 text-red-600 hover:bg-red-50"
+                        }`}
+                    >
+                        Eliminar
+                    </button>
+                </div>
+            </td>
         </tr>
     );
 }
