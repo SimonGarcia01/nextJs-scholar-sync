@@ -61,7 +61,7 @@ export default function PostCard({ post, replyCount, onClick }: PostCardProps) {
                 <div className="flex items-center gap-3">
                     {date && <span>{date}</span>}
                     <span className="font-medium text-slate-600">
-                        💬 {replyCount}
+                        {replyCount} respuestas
                     </span>
                 </div>
             </div>

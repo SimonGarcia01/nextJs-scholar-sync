@@ -186,7 +186,7 @@ export default function ProfileModal({
                                                 className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2"
                                             >
                                                 <p className="text-xs font-semibold text-slate-700">
-                                                    🏅 {name}
+                                                    {name}
                                                 </p>
                                                 {msg && (
                                                     <p className="text-xs text-slate-400 mt-0.5 truncate">

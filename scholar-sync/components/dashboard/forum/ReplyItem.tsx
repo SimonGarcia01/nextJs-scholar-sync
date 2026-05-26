@@ -40,7 +40,7 @@ export default function ReplyItem({
                 <span>{author}</span>
                 {date && <span>{date}</span>}
                 {reply.approvals !== undefined && reply.approvals > 0 && (
-                    <span>👍 {reply.approvals}</span>
+                    <span>{reply.approvals} aprobaciones</span>
                 )}
                 {reply.validated && (
                     <span className="font-medium text-green-600">

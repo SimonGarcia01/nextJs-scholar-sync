@@ -41,7 +41,6 @@ export default function BadgesGridTab({
                         key={row.id}
                         className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col items-center text-center gap-2"
                     >
-                        <span className="text-3xl">🏅</span>
                         <h3 className="font-semibold text-slate-900">
                             {String(row.Insignia ?? "-")}
                         </h3>
