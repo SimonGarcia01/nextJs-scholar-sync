@@ -3,11 +3,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { setAuthToken } from "@/lib/axios";
-import { getPermissionsFromToken } from "@/lib/jwt";
+import { getPermissionsFromToken, getRolesFromToken } from "@/lib/jwt";
 
 type AuthState = {
     token: string | null;
     permissions: string[];
+    roles: string[];
     setToken: (token: string | null) => void;
     setPermissions: (permissions: string[]) => void;
     clearAuth: () => void;
@@ -18,14 +19,19 @@ const useAuthStore = create<AuthState>()(
         (set) => ({
             token: null,
             permissions: [],
+            roles: [],
             setToken: (token) => {
                 setAuthToken(token);
-                set({ token, permissions: getPermissionsFromToken(token) });
+                set({
+                    token,
+                    permissions: getPermissionsFromToken(token),
+                    roles: getRolesFromToken(token),
+                });
             },
             setPermissions: (permissions) => set({ permissions }),
             clearAuth: () => {
                 setAuthToken(null);
-                set({ token: null, permissions: [] });
+                set({ token: null, permissions: [], roles: [] });
             },
         }),
         {
@@ -40,8 +46,11 @@ const useAuthStore = create<AuthState>()(
                 const permissions = Array.isArray(state?.permissions)
                     ? state.permissions
                     : getPermissionsFromToken(token);
+                const roles = Array.isArray(state?.roles)
+                    ? state.roles
+                    : getRolesFromToken(token);
 
-                return { token, permissions } as AuthState;
+                return { token, permissions, roles } as AuthState;
             },
             onRehydrateStorage: () => (state) => {
                 if (state?.token) {

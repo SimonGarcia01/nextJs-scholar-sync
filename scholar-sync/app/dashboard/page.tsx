@@ -2,18 +2,23 @@
 
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import Sidebar, { SidebarItemData } from "@/components/dashboard/Sidebar";
+import AppHeader from "@/components/dashboard/AppHeader";
+import ProfileModal from "@/components/dashboard/ProfileModal";
 import UsersTab from "@/components/dashboard/tabs/UsersTab";
 import RolesTab from "@/components/dashboard/tabs/RolesTab";
 import PermissionsTab from "@/components/dashboard/tabs/PermissionsTab";
 import CoursesTab from "@/components/dashboard/tabs/CoursesTab";
+import CoursesCardTab from "@/components/dashboard/tabs/CoursesCardTab";
 import SupplementarySessionsTab from "@/components/dashboard/tabs/SupplementarySessionsTab";
 import ExperienceBadgesTab from "@/components/dashboard/tabs/ExperienceBadgesTab";
+import BadgesGridTab from "@/components/dashboard/tabs/BadgesGridTab";
 import UserBadgesTab from "@/components/dashboard/tabs/UserBadgesTab";
 import PostsTab from "@/components/dashboard/tabs/PostsTab";
 import RepliesTab from "@/components/dashboard/tabs/RepliesTab";
-import { MenuIcon } from "@/components/dashboard/Icons";
+import ForumTab from "@/components/dashboard/tabs/ForumTab";
 import apiService from "@/lib/apiService";
 import useAuthStore from "@/_store/authStore";
+import { decodeJwtPayload } from "@/lib/jwt";
 import type {
     EntityTabProps,
     TabRows,
@@ -230,7 +235,7 @@ const formatCourseUser = (entry: Record<string, unknown>) => {
     return name ?? relation;
 };
 
-const tabs: TabConfig[] = [
+const allTabs: TabConfig[] = [
     {
         id: "users",
         label: "Usuarios",
@@ -446,31 +451,41 @@ const tabs: TabConfig[] = [
             };
         },
     },
+    {
+        id: "foro",
+        label: "Foro",
+        entity: "posts",
+        endpoint: "/post",
+        mapRow: (_item, index) => ({ id: index }),
+    },
 ];
-
-const tabComponents: Record<string, (props: EntityTabProps) => ReactElement> = {
-    users: UsersTab,
-    roles: RolesTab,
-    permissions: PermissionsTab,
-    courses: CoursesTab,
-    supplementary_sessions: SupplementarySessionsTab,
-    experience_badges: ExperienceBadgesTab,
-    user_badges: UserBadgesTab,
-    posts: PostsTab,
-    replies: RepliesTab,
-};
 
 export default function DashboardPage() {
     const permissions = useAuthStore((state) => state.permissions);
+    const roles = useAuthStore((state) => state.roles);
+    const token = useAuthStore((state) => state.token);
+
+    const isAdmin = roles.includes("Admin");
+
+    const payload = useMemo(
+        () => (token ? decodeJwtPayload(token) : null),
+        [token]
+    );
+    const userId = payload?.sub ?? null;
+    const userEmail = payload?.email ?? "";
+
     const permissionsIndex = useMemo(
         () => buildPermissionsIndex(permissions),
         [permissions]
     );
+
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [profileOpen, setProfileOpen] = useState(false);
+
     const [tabState, setTabState] = useState<Record<string, TabState>>(() =>
         Object.fromEntries(
-            tabs.map((tab) => [
+            allTabs.map((tab) => [
                 tab.id,
                 { rows: [], error: null, loaded: false },
             ])
@@ -478,10 +493,17 @@ export default function DashboardPage() {
     );
 
     const availableTabs = useMemo(() => {
-        return tabs.filter((tab) =>
-            hasAnyPermissionForEntity(permissionsIndex, tab.entity)
-        );
-    }, [permissionsIndex]);
+        return allTabs
+            .filter((tab) =>
+                hasAnyPermissionForEntity(permissionsIndex, tab.entity)
+            )
+            .filter((tab) => {
+                if (isAdmin) {
+                    return tab.id !== "foro";
+                }
+                return tab.id !== "posts" && tab.id !== "replies";
+            });
+    }, [permissionsIndex, isAdmin]);
 
     const [selectedTabId, setSelectedTabId] = useState(
         availableTabs[0]?.id ?? ""
@@ -516,6 +538,10 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (!selectedTab || !canRead) {
+            return;
+        }
+
+        if (selectedTab.id === "foro") {
             return;
         }
 
@@ -567,7 +593,7 @@ export default function DashboardPage() {
     }, [selectedTab, canRead, selectedTabState?.loaded]);
 
     const handleDelete = async (tabId: string, rowId: string | number) => {
-        const tab = tabs.find((item) => item.id === tabId);
+        const tab = allTabs.find((item) => item.id === tabId);
         if (!tab) {
             return;
         }
@@ -582,6 +608,24 @@ export default function DashboardPage() {
         }));
     };
 
+    const tabComponents: Record<
+        string,
+        (props: EntityTabProps) => ReactElement
+    > = useMemo(
+        () => ({
+            users: UsersTab,
+            roles: RolesTab,
+            permissions: PermissionsTab,
+            courses: isAdmin ? CoursesTab : CoursesCardTab,
+            supplementary_sessions: SupplementarySessionsTab,
+            experience_badges: isAdmin ? ExperienceBadgesTab : BadgesGridTab,
+            user_badges: UserBadgesTab,
+            posts: PostsTab,
+            replies: RepliesTab,
+        }),
+        [isAdmin]
+    );
+
     const renderTab = () => {
         if (!selectedTab) {
             return (
@@ -590,6 +634,17 @@ export default function DashboardPage() {
                         No tienes permisos asignados todavia.
                     </p>
                 </div>
+            );
+        }
+
+        if (selectedTab.id === "foro") {
+            return (
+                <ForumTab
+                    roles={roles}
+                    canCreate={
+                        can("posts", "create") || can("replies", "create")
+                    }
+                />
             );
         }
 
@@ -622,6 +677,14 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-(--blue-50)">
+            <ProfileModal
+                isOpen={profileOpen}
+                userId={userId}
+                userEmail={userEmail}
+                roles={roles}
+                onClose={() => setProfileOpen(false)}
+            />
+
             <div className="flex">
                 <Sidebar
                     isOpen={sidebarOpen}
@@ -642,26 +705,12 @@ export default function DashboardPage() {
                         sidebarCollapsed ? "md:ml-20" : "md:ml-64"
                     }`}
                 >
-                    <header className="sticky top-0 z-10 bg-(--blue-50)/90 backdrop-blur border-b border-slate-200">
-                        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
-                            <button
-                                type="button"
-                                onClick={() => setSidebarOpen((prev) => !prev)}
-                                className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white"
-                                aria-label="Toggle menu"
-                            >
-                                <MenuIcon className="h-5 w-5 text-slate-700" />
-                            </button>
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold">
-                                    Panel principal
-                                </p>
-                                <h1 className="text-xl font-semibold text-slate-900">
-                                    {selectedTab?.label ?? "Inicio"}
-                                </h1>
-                            </div>
-                        </div>
-                    </header>
+                    <AppHeader
+                        tabLabel={selectedTab?.label ?? "Inicio"}
+                        userName={userEmail}
+                        onMenuToggle={() => setSidebarOpen((prev) => !prev)}
+                        onProfileOpen={() => setProfileOpen(true)}
+                    />
 
                     <main className="max-w-6xl mx-auto px-6 py-8">
                         {renderTab()}

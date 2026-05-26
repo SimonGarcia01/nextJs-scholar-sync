@@ -1,4 +1,7 @@
 export type JwtPayload = {
+    sub?: number;
+    email?: string;
+    roles?: string[];
     permissions?: string[];
 };
 
@@ -22,11 +25,18 @@ export const decodeJwtPayload = (token: string): JwtPayload | null => {
     }
 };
 
-export const getPermissionsFromToken = (token: string | null) => {
+export const getPermissionsFromToken = (token: string | null): string[] => {
     if (!token) {
         return [];
     }
-
     const payload = decodeJwtPayload(token);
     return Array.isArray(payload?.permissions) ? payload.permissions : [];
+};
+
+export const getRolesFromToken = (token: string | null): string[] => {
+    if (!token) {
+        return [];
+    }
+    const payload = decodeJwtPayload(token);
+    return Array.isArray(payload?.roles) ? payload.roles : [];
 };
