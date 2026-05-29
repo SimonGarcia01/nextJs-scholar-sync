@@ -1,18 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar, { SidebarItemData } from "@/components/dashboard/Sidebar";
 import AppHeader from "@/components/dashboard/AppHeader";
 import ProfileModal from "@/components/dashboard/ProfileModal";
 import UsersTab from "@/components/dashboard/tabs/UsersTab";
 import RolesTab from "@/components/dashboard/tabs/RolesTab";
 import PermissionsTab from "@/components/dashboard/tabs/PermissionsTab";
+import RolesPermissionsTab from "@/components/dashboard/tabs/RolesPermissionsTab";
 import CoursesTab from "@/components/dashboard/tabs/CoursesTab";
 import CoursesCardTab from "@/components/dashboard/tabs/CoursesCardTab";
 import SupplementarySessionsTab from "@/components/dashboard/tabs/SupplementarySessionsTab";
 import ExperienceBadgesTab from "@/components/dashboard/tabs/ExperienceBadgesTab";
 import BadgesGridTab from "@/components/dashboard/tabs/BadgesGridTab";
 import UserBadgesTab from "@/components/dashboard/tabs/UserBadgesTab";
+import UserRolesTab from "@/components/dashboard/tabs/UserRolesTab";
+import UserCoursesTab from "@/components/dashboard/tabs/UserCoursesTab";
+import AttendanceSuppSessionsTab from "@/components/dashboard/tabs/AttendanceSuppSessionsTab";
 import PostsTab from "@/components/dashboard/tabs/PostsTab";
 import RepliesTab from "@/components/dashboard/tabs/RepliesTab";
 import ForumTab from "@/components/dashboard/tabs/ForumTab";
@@ -28,7 +33,6 @@ import {
     hasAnyPermissionForEntity,
     hasPermissionForEntity,
 } from "@/lib/permissions";
-import FormModal, { type FormField } from "@/components/dashboard/FormModal";
 
 type TabConfig = {
     id: string;
@@ -48,20 +52,20 @@ type TabState = {
     loaded: boolean;
 };
 
-const resolveId = (item: Record<string, unknown>, fallback: number) => {
+export const resolveId = (item: Record<string, unknown>, fallback: number) => {
     const id = item.id ?? item._id ?? fallback;
     return typeof id === "string" || typeof id === "number" ? id : fallback;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
+export const isRecord = (value: unknown): value is Record<string, unknown> => {
     return !!value && typeof value === "object" && !Array.isArray(value);
 };
 
-const toArray = (value: unknown): unknown[] => {
+export const toArray = (value: unknown): unknown[] => {
     return Array.isArray(value) ? value : [];
 };
 
-const collectLabels = (
+export const collectLabels = (
     items: unknown,
     getter: (item: Record<string, unknown>) => unknown
 ) => {
@@ -75,7 +79,7 @@ const collectLabels = (
     return labels.length ? labels.join(", ") : null;
 };
 
-const getProp = (value: unknown, key: string) => {
+export const getProp = (value: unknown, key: string) => {
     if (!isRecord(value)) {
         return undefined;
     }
@@ -83,14 +87,14 @@ const getProp = (value: unknown, key: string) => {
     return value[key];
 };
 
-const combineName = (first: unknown, last: unknown) => {
+export const combineName = (first: unknown, last: unknown) => {
     const firstName = typeof first === "string" ? first.trim() : "";
     const lastName = typeof last === "string" ? last.trim() : "";
     const fullName = `${firstName} ${lastName}`.trim();
     return fullName ? fullName : null;
 };
 
-const getObjectLabel = (value: Record<string, unknown>) => {
+export const getObjectLabel = (value: Record<string, unknown>) => {
     const fullName = combineName(
         getProp(value, "firstName"),
         getProp(value, "lastName")
@@ -110,12 +114,12 @@ const getObjectLabel = (value: Record<string, unknown>) => {
     return null;
 };
 
-const toLabel = (value: unknown): string | number | null => {
+export const toLabel = (value: unknown): string | number | null => {
     if (value === null || value === undefined) {
         return null;
     }
     if (typeof value === "string") {
-        return value.trim() ? value : null;
+        return value.trim() ? value.trim() : null;
     }
     if (typeof value === "number") {
         return value;
@@ -141,7 +145,7 @@ const toLabel = (value: unknown): string | number | null => {
     return null;
 };
 
-const pickValue = (...values: unknown[]) => {
+export const pickValue = (...values: unknown[]) => {
     for (const value of values) {
         const label = toLabel(value);
         if (label !== null && label !== "") {
@@ -151,7 +155,7 @@ const pickValue = (...values: unknown[]) => {
     return "-";
 };
 
-const formatDate = (value: unknown) => {
+export const formatDate = (value: unknown) => {
     if (value === null || value === undefined || value === "") {
         return "-";
     }
@@ -168,7 +172,7 @@ const formatDate = (value: unknown) => {
     });
 };
 
-const booleanLabel = (value: unknown) => {
+export const booleanLabel = (value: unknown) => {
     if (typeof value === "boolean") {
         return value ? "Si" : "No";
     }
@@ -184,7 +188,7 @@ const booleanLabel = (value: unknown) => {
     return pickValue(value);
 };
 
-const statusFromFlag = (
+export const statusFromFlag = (
     value: unknown,
     whenTrue: string,
     whenFalse: string
@@ -195,12 +199,12 @@ const statusFromFlag = (
     return null;
 };
 
-const normalizeLabel = (value: unknown) => {
+export const normalizeLabel = (value: unknown) => {
     const label = toLabel(value);
     return label === null || label === "" ? null : String(label);
 };
 
-const getPersonLabel = (value: unknown) => {
+export const getPersonLabel = (value: unknown) => {
     if (!isRecord(value)) {
         return null;
     }
@@ -208,7 +212,7 @@ const getPersonLabel = (value: unknown) => {
     return normalizeLabel(getObjectLabel(value));
 };
 
-const formatAttendanceEntry = (entry: Record<string, unknown>) => {
+export const formatAttendanceEntry = (entry: Record<string, unknown>) => {
     const studentLabel =
         getPersonLabel(getProp(entry, "student")) ??
         getPersonLabel(getProp(entry, "user"));
@@ -221,7 +225,7 @@ const formatAttendanceEntry = (entry: Record<string, unknown>) => {
     return studentLabel ?? taLabel;
 };
 
-const formatCourseUser = (entry: Record<string, unknown>) => {
+export const formatCourseUser = (entry: Record<string, unknown>) => {
     const name = normalizeLabel(
         combineName(getProp(entry, "firstName"), getProp(entry, "lastName")) ??
             getProp(entry, "name") ??
@@ -307,6 +311,80 @@ const allTabs: TabConfig[] = [
         },
     },
     {
+        id: "roles_permissions",
+        label: "Roles y permisos",
+        entity: "roles_permissions",
+        endpoint: "/role-permission",
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Rol: pickValue(
+                    getProp(data.role, "name"),
+                    data.roleName,
+                    data.role
+                ),
+                Permiso: pickValue(
+                    getProp(data.permission, "name"),
+                    data.permissionName,
+                    data.permission
+                ),
+            };
+        },
+    },
+    {
+        id: "user_roles",
+        label: "Usuarios y roles",
+        entity: "user_roles",
+        endpoint: "/user-role",
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Usuario: pickValue(
+                    getProp(data.user, "email"),
+                    getProp(data.user, "name"),
+                    data.userEmail,
+                    data.user
+                ),
+                Rol: pickValue(
+                    getProp(data.role, "name"),
+                    data.roleName,
+                    data.role
+                ),
+            };
+        },
+    },
+    {
+        id: "user_courses",
+        label: "Usuarios y cursos",
+        entity: "user_courses",
+        endpoint: "/user-course",
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Usuario: pickValue(
+                    getProp(data.user, "email"),
+                    combineName(
+                        getProp(getProp(data, "user"), "firstName"),
+                        getProp(getProp(data, "user"), "lastName")
+                    ),
+                    getProp(data.user, "name"),
+                    data.userEmail,
+                    data.user
+                ),
+                Curso: pickValue(
+                    getProp(data.course, "name"),
+                    getProp(data.course, "title"),
+                    data.courseName,
+                    data.course
+                ),
+                Tipo: pickValue(data.relationType, data.type, data.role),
+            };
+        },
+    },
+    {
         id: "courses",
         label: "Cursos",
         entity: "courses",
@@ -359,6 +437,46 @@ const allTabs: TabConfig[] = [
                         isRecord(entry) ? formatAttendanceEntry(entry) : null
                     )
                 ),
+            };
+        },
+    },
+    {
+        id: "attendance_supp_sessions",
+        label: "Asistencia sesiones",
+        entity: "attendance_supp_sessions",
+        endpoint: "/attendance-supp-session",
+        mapRow: (item, index) => {
+            const data = item;
+            return {
+                id: resolveId(data, index),
+                Sesion: pickValue(
+                    getProp(data.supplementarySession, "topic"),
+                    getProp(data.supplementarySession, "name"),
+                    getProp(data.session, "topic"),
+                    data.sessionTopic,
+                    data.session
+                ),
+                TA: pickValue(
+                    combineName(
+                        getProp(getProp(data, "ta"), "firstName"),
+                        getProp(getProp(data, "ta"), "lastName")
+                    ),
+                    getProp(data.ta, "email"),
+                    getProp(data.ta, "name"),
+                    data.taEmail,
+                    data.ta
+                ),
+                Estudiante: pickValue(
+                    combineName(
+                        getProp(getProp(data, "student"), "firstName"),
+                        getProp(getProp(data, "student"), "lastName")
+                    ),
+                    getProp(data.student, "email"),
+                    getProp(data.student, "name"),
+                    data.studentEmail,
+                    data.student
+                ),
+                Notas: pickValue(data.notes, data.note, data.comments),
             };
         },
     },
@@ -434,7 +552,7 @@ const allTabs: TabConfig[] = [
         mapRow: (item, index) => {
             const data = item;
             const status = statusFromFlag(
-                data.isValidated,
+                data.validated,
                 "Aprobada",
                 "Pendiente"
             );
@@ -462,9 +580,11 @@ const allTabs: TabConfig[] = [
 ];
 
 export default function DashboardPage() {
+    const router = useRouter();
     const permissions = useAuthStore((state) => state.permissions);
     const roles = useAuthStore((state) => state.roles);
     const token = useAuthStore((state) => state.token);
+    const clearAuth = useAuthStore((state) => state.clearAuth);
 
     const isAdmin = roles.includes("Admin");
 
@@ -483,65 +603,6 @@ export default function DashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
-
-    const [modalState, setModalState] = useState<{
-        mode: "create" | "edit";
-        tabId: string;
-        rowId?: string | number;
-        initialValues?: Record<string, string | number | boolean>;
-    } | null>(null);
-
-    const tabFormFields: Record<string, FormField[]> = {
-        users: [
-            { key: "email", label: "Email", type: "email", required: true },
-            { key: "password", label: "Password", type: "password", required: true },
-            { key: "firstName", label: "Nombre", type: "text", required: true },
-            { key: "lastName", label: "Apellido", type: "text", required: true },
-            { key: "major1", label: "Carrera 1", type: "text", required: true },
-            { key: "xp", label: "XP", type: "number", required: true },
-            { key: "level", label: "Nivel", type: "number", required: true },
-        ],
-        roles: [
-            { key: "name", label: "Nombre", type: "text", required: true },
-            { key: "description", label: "Descripcion", type: "text" },
-        ],
-        permissions: [
-            { key: "name", label: "Nombre", type: "text", required: true },
-            { key: "description", label: "Descripcion", type: "text" },
-        ],
-        courses: [
-            { key: "name", label: "Nombre", type: "text", required: true },
-            { key: "credits", label: "Creditos", type: "number", required: true },
-            { key: "duration", label: "Duracion (semanas)", type: "number", required: true },
-            { key: "startDate", label: "Fecha inicio", type: "date", required: true },
-        ],
-        supplementary_sessions: [
-            { key: "topic", label: "Tema", type: "text", required: true },
-            { key: "requestedDate", label: "Fecha", type: "date", required: true },
-            { key: "virtual", label: "Virtual", type: "boolean" },
-        ],
-        experience_badges: [
-            { key: "name", label: "Nombre", type: "text", required: true },
-            { key: "minLevel", label: "Nivel minimo", type: "number", required: true },
-            { key: "message", label: "Mensaje", type: "text", required: true },
-            { key: "associatePrices", label: "Premio", type: "text" },
-        ],
-        user_badges: [
-            { key: "userId", label: "ID Usuario", type: "number", required: true },
-            { key: "experienceBadgeId", label: "ID Insignia", type: "number", required: true },
-            { key: "dateAcquired", label: "Fecha", type: "date" },
-        ],
-        posts: [
-            { key: "userId", label: "ID Usuario", type: "number", required: true },
-            { key: "title", label: "Titulo", type: "text", required: true },
-            { key: "question", label: "Pregunta", type: "textarea", required: true },
-        ],
-        replies: [
-            { key: "postId", label: "ID Post", type: "number", required: true },
-            { key: "userId", label: "ID Usuario", type: "number", required: true },
-            { key: "replyMessage", label: "Respuesta", type: "textarea", required: true },
-        ],
-    };
 
     const [tabState, setTabState] = useState<Record<string, TabState>>(() =>
         Object.fromEntries(
@@ -654,7 +715,10 @@ export default function DashboardPage() {
 
     const handleDelete = async (tabId: string, rowId: string | number) => {
         const tab = allTabs.find((item) => item.id === tabId);
-        if (!tab) return;
+        if (!tab) {
+            return;
+        }
+
         await apiService.delete(`${tab.endpoint}/${rowId}`);
         setTabState((prev) => ({
             ...prev,
@@ -665,37 +729,42 @@ export default function DashboardPage() {
         }));
     };
 
-    const handleModalSubmit = async (values: Record<string, unknown>) => {
-        if (!modalState) return;
-        const tab = allTabs.find((t) => t.id === modalState.tabId);
-        if (!tab) return;
+    const handleRefreshTab = async (tabId: string) => {
+        const tab = allTabs.find((item) => item.id === tabId);
+        if (!tab) {
+            return;
+        }
 
-        if (modalState.mode === "create") {
-            const created = await apiService.post<Record<string, unknown>>(tab.endpoint, values);
-            const newRow = tab.mapRow(created, 0);
+        try {
+            const data = await apiService.get<Record<string, unknown>[]>(
+                tab.endpoint
+            );
+            const items = Array.isArray(data) ? data : [];
+            const rows = items.map((item, index) => tab.mapRow(item ?? {}, index));
+
             setTabState((prev) => ({
                 ...prev,
-                [tab.id]: {
-                    ...prev[tab.id],
-                    rows: [...prev[tab.id].rows, newRow],
+                [tabId]: {
+                    rows,
+                    error: null,
+                    loaded: true,
                 },
             }));
-        } else if (modalState.mode === "edit" && modalState.rowId !== undefined) {
-            const updated = await apiService.patch<Record<string, unknown>>(
-                `${tab.endpoint}/${modalState.rowId}`,
-                values
-            );
-            const updatedRow = tab.mapRow(updated, 0);
+        } catch {
             setTabState((prev) => ({
                 ...prev,
-                [tab.id]: {
-                    ...prev[tab.id],
-                    rows: prev[tab.id].rows.map((r) =>
-                        r.id === modalState.rowId ? updatedRow : r
-                    ),
+                [tabId]: {
+                    ...prev[tabId],
+                    error: "No se pudo cargar la informacion.",
+                    loaded: true,
                 },
             }));
         }
+    };
+
+    const handleLogout = () => {
+        clearAuth();
+        router.push("/login");
     };
 
     const tabComponents: Record<
@@ -706,8 +775,12 @@ export default function DashboardPage() {
             users: UsersTab,
             roles: RolesTab,
             permissions: PermissionsTab,
+            roles_permissions: RolesPermissionsTab,
+            user_roles: UserRolesTab,
+            user_courses: UserCoursesTab,
             courses: isAdmin ? CoursesTab : CoursesCardTab,
             supplementary_sessions: SupplementarySessionsTab,
+            attendance_supp_sessions: AttendanceSuppSessionsTab,
             experience_badges: isAdmin ? ExperienceBadgesTab : BadgesGridTab,
             user_badges: UserBadgesTab,
             posts: PostsTab,
@@ -731,10 +804,8 @@ export default function DashboardPage() {
             return (
                 <ForumTab
                     roles={roles}
-                    canCreate={
-                        can("posts", "create") || can("replies", "create")
-                    }
-                    userId={userId}
+                    canCreatePost={can("posts", "create")}
+                    canCreateReply={can("replies", "create")}
                 />
             );
         }
@@ -759,31 +830,8 @@ export default function DashboardPage() {
                 canCreate={canCreate}
                 canUpdate={canUpdate}
                 canDelete={canDelete}
+                onRefresh={() => handleRefreshTab(selectedTab.id)}
                 onDelete={(rowId) => handleDelete(selectedTab.id, rowId)}
-                onCreateClick={() =>
-                    setModalState({ mode: "create", tabId: selectedTab.id })
-                }
-                onEditClick={async (row) => {
-                    const tab = allTabs.find((t) => t.id === selectedTab.id);
-                    if (!tab) return;
-                    try {
-                        const fresh = await apiService.get<Record<string, unknown>>(
-                            `${tab.endpoint}/${row.id}`
-                        );
-                        setModalState({
-                            mode: "edit",
-                            tabId: selectedTab.id,
-                            rowId: row.id,
-                            initialValues: fresh as Record<string, string | number | boolean>,
-                        });
-                    } catch {
-                        setModalState({
-                            mode: "edit",
-                            tabId: selectedTab.id,
-                            rowId: row.id,
-                        });
-                    }
-                }}
                 isLoading={isLoading}
                 emptyMessage={emptyMessage}
             />
@@ -792,20 +840,6 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-(--blue-50)">
-            {modalState && (
-                <FormModal
-                    title={
-                        modalState.mode === "create"
-                            ? `Crear ${allTabs.find((t) => t.id === modalState.tabId)?.label ?? ""}`
-                            : `Editar ${allTabs.find((t) => t.id === modalState.tabId)?.label ?? ""}`
-                    }
-                    fields={tabFormFields[modalState.tabId] ?? []}
-                    initialValues={modalState.initialValues}
-                    mode={modalState.mode}
-                    onSubmit={handleModalSubmit}
-                    onClose={() => setModalState(null)}
-                />
-            )}
             <ProfileModal
                 isOpen={profileOpen}
                 userId={userId}
@@ -839,6 +873,7 @@ export default function DashboardPage() {
                         userName={userEmail}
                         onMenuToggle={() => setSidebarOpen((prev) => !prev)}
                         onProfileOpen={() => setProfileOpen(true)}
+                        onLogout={handleLogout}
                     />
 
                     <main className="max-w-6xl mx-auto px-6 py-8">

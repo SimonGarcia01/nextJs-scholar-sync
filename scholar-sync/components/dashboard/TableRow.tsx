@@ -3,8 +3,8 @@ type TableRowProps = {
     row: Record<string, string | number> & { id: string | number };
     canUpdate: boolean;
     canDelete: boolean;
-    onDelete?: (id: string | number) => void;
     onEdit?: (row: Record<string, string | number> & { id: string | number }) => void;
+    onDelete?: (id: string | number) => void;
 };
 
 export default function TableRow({
@@ -12,8 +12,8 @@ export default function TableRow({
     row,
     canUpdate,
     canDelete,
-    onDelete,
     onEdit,
+    onDelete,
 }: TableRowProps) {
     const updateDisabled = !canUpdate;
     const deleteDisabled = !canDelete;
@@ -30,7 +30,11 @@ export default function TableRow({
                         type="button"
                         disabled={updateDisabled}
                         aria-disabled={updateDisabled}
-                        onClick={!updateDisabled ? () => onEdit?.(row) : undefined}
+                        onClick={() => {
+                            if (!updateDisabled) {
+                                onEdit?.(row);
+                            }
+                        }}
                         className={`rounded-md border px-3 py-1 text-xs font-semibold transition ${
                             updateDisabled
                                 ? "border-slate-200 text-slate-300 bg-slate-100 cursor-not-allowed"

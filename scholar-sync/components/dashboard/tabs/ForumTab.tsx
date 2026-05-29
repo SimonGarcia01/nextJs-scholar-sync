@@ -10,13 +10,20 @@ import PostThread from "@/components/dashboard/forum/PostThread";
 
 type ForumTabProps = {
     roles: string[];
-    canCreate: boolean;
-    userId: number | null;
+    canCreatePost: boolean;
+    canCreateReply: boolean;
 };
 
-export default function ForumTab({ roles, canCreate, userId }: ForumTabProps) {
+export default function ForumTab({
+    roles,
+    canCreatePost,
+    canCreateReply,
+}: ForumTabProps) {
     const [posts, setPosts] = useState<ForumPost[]>([]);
     const [allReplies, setAllReplies] = useState<ForumReply[]>([]);
+    const [newPostTitle, setNewPostTitle] = useState("");
+    const [newPostContent, setNewPostContent] = useState("");
+    const [creatingPost, setCreatingPost] = useState(false);
     const [selectedPostId, setSelectedPostId] = useState<
         number | string | null
     >(null);
@@ -73,7 +80,7 @@ export default function ForumTab({ roles, canCreate, userId }: ForumTabProps) {
         setAllReplies((prev) =>
             prev.map((r) =>
                 String(r.id) === String(replyId)
-                    ? { ...r, isValidated: true }
+                    ? { ...r, validated: true }
                     : r
             )
         );
@@ -81,6 +88,38 @@ export default function ForumTab({ roles, canCreate, userId }: ForumTabProps) {
 
     const handleReplyAdded = (reply: ForumReply) => {
         setAllReplies((prev) => [...prev, reply]);
+    };
+    const handleReplyLiked = (replyId: number | string) => {
+        setAllReplies((prev) =>
+            prev.map((reply) => {
+                if (String(reply.id) !== String(replyId)) {
+                    return reply;
+                }
+                const currentLikes =
+                    typeof reply.approvals === "number" ? reply.approvals : 0;
+                return { ...reply, approvals: currentLikes + 1 };
+            })
+        );
+    };
+
+    const handleCreatePost = async () => {
+        const title = newPostTitle.trim();
+        const content = newPostContent.trim();
+        if (!title || !content) {
+            return;
+        }
+        setCreatingPost(true);
+        try {
+            const created = await apiService.post<ForumPost>("/post", {
+                title,
+                content,
+            });
+            setPosts((prev) => [created, ...prev]);
+            setNewPostTitle("");
+            setNewPostContent("");
+        } finally {
+            setCreatingPost(false);
+        }
     };
 
     const isLoading = loadingPosts || loadingReplies;
@@ -106,10 +145,11 @@ export default function ForumTab({ roles, canCreate, userId }: ForumTabProps) {
                 post={post}
                 replies={replies}
                 canValidate={canValidate}
-                canCreate={canCreate}
-                userId={userId}
+                canCreate={canCreateReply}
+                canLike={canCreateReply}
                 onBack={() => setSelectedPostId(null)}
                 onReplyValidated={handleReplyValidated}
+                onReplyLiked={handleReplyLiked}
                 onReplyAdded={handleReplyAdded}
             />
         );
@@ -127,6 +167,40 @@ export default function ForumTab({ roles, canCreate, userId }: ForumTabProps) {
                     </p>
                 </div>
             </div>
+            {canCreatePost && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-slate-700">
+                        Crear post
+                    </h3>
+                    <input
+                        value={newPostTitle}
+                        onChange={(event) => setNewPostTitle(event.target.value)}
+                        placeholder="Titulo"
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                    <textarea
+                        value={newPostContent}
+                        onChange={(event) =>
+                            setNewPostContent(event.target.value)
+                        }
+                        rows={3}
+                        placeholder="Contenido del post..."
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                    />
+                    <button
+                        type="button"
+                        disabled={
+                            creatingPost ||
+                            !newPostTitle.trim() ||
+                            !newPostContent.trim()
+                        }
+                        onClick={handleCreatePost}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-500 transition"
+                    >
+                        {creatingPost ? "Creando..." : "Publicar"}
+                    </button>
+                </div>
+            )}
             {posts.length === 0 ? (
                 <div className="bg-white border border-slate-200 rounded-2xl p-6">
                     <p className="text-slate-500 text-sm">

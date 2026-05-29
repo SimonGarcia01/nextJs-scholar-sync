@@ -13,9 +13,10 @@ type PostThreadProps = {
     replies: ForumReply[];
     canValidate: boolean;
     canCreate: boolean;
-    userId: number | null;
+    canLike: boolean;
     onBack: () => void;
     onReplyValidated: (replyId: number | string) => void;
+    onReplyLiked: (replyId: number | string) => void;
     onReplyAdded: (reply: ForumReply) => void;
 };
 
@@ -24,9 +25,10 @@ export default function PostThread({
     replies,
     canValidate,
     canCreate,
-    userId,
+    canLike,
     onBack,
     onReplyValidated,
+    onReplyLiked,
     onReplyAdded,
 }: PostThreadProps) {
     const [replyContent, setReplyContent] = useState("");
@@ -37,8 +39,8 @@ export default function PostThread({
             ? `${post.user.firstName} ${post.user.lastName ?? ""}`.trim()
             : (post.user?.email ?? "Desconocido");
 
-    const date = post.dateAdded
-        ? new Date(post.dateAdded).toLocaleDateString("es-CO", {
+    const date = post.createdAt
+        ? new Date(post.createdAt).toLocaleDateString("es-CO", {
               day: "2-digit",
               month: "short",
               year: "numeric",
@@ -59,14 +61,18 @@ export default function PostThread({
         try {
             const created = await apiService.post<ForumReply>("/reply", {
                 postId: post.id,
-                replyMessage: content,
-                userId,
+                content,
             });
             onReplyAdded(created);
             setReplyContent("");
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleLike = async (replyId: number | string) => {
+        await apiService.patch(`/reply/${replyId}/like`, {});
+        onReplyLiked(replyId);
     };
 
     return (
@@ -87,9 +93,9 @@ export default function PostThread({
                     <span>{author}</span>
                     {date && <span>{date}</span>}
                 </div>
-                {post.question && (
+                {post.content && (
                     <p className="mt-4 text-sm text-slate-700 leading-relaxed">
-                        {post.question}
+                        {post.content}
                     </p>
                 )}
             </div>
@@ -108,6 +114,8 @@ export default function PostThread({
                         key={reply.id}
                         reply={reply}
                         canValidate={canValidate}
+                        canLike={canLike}
+                        onLike={handleLike}
                         onValidate={handleValidate}
                     />
                 ))}

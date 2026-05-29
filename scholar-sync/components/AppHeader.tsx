@@ -31,10 +31,7 @@ export default function AppHeader() {
                             <Link href="/login" className="nav-pill">
                                 Login
                             </Link>
-                            <Link
-                                href="/signup"
-                                className="nav-pill nav-pill--light"
-                            >
+                            <Link href="/signUp" className="nav-pill nav-pill--light">
                                 Sign up
                             </Link>
                         </>

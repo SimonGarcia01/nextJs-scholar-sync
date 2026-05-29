@@ -1,8 +1,8 @@
 export type ForumPost = {
     id: number | string;
     title?: string;
-    question?: string;
-    dateAdded?: string;
+    content?: string;
+    createdAt?: string;
     user?: {
         id?: number;
         email?: string;
@@ -14,9 +14,9 @@ export type ForumPost = {
 
 export type ForumReply = {
     id: number | string;
-    replyMessage?: string;
-    dateAdded?: string;
-    isValidated?: boolean;
+    content?: string;
+    createdAt?: string;
+    validated?: boolean;
     approvals?: number;
     user?: { id?: number; email?: string };
     post?: { id?: number | string; title?: string };
@@ -34,8 +34,8 @@ export default function PostCard({ post, replyCount, onClick }: PostCardProps) {
             ? `${post.user.firstName} ${post.user.lastName ?? ""}`.trim()
             : (post.user?.email ?? "Desconocido");
 
-    const date = post.dateAdded
-        ? new Date(post.dateAdded).toLocaleDateString("es-CO", {
+    const date = post.createdAt
+        ? new Date(post.createdAt).toLocaleDateString("es-CO", {
               day: "2-digit",
               month: "short",
               year: "numeric",
@@ -51,9 +51,9 @@ export default function PostCard({ post, replyCount, onClick }: PostCardProps) {
             <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition line-clamp-2">
                 {post.title ?? "Sin título"}
             </h3>
-            {post.question && (
+            {post.content && (
                 <p className="mt-1 text-sm text-slate-500 line-clamp-2">
-                    {post.question}
+                    {post.content}
                 </p>
             )}
             <div className="mt-3 flex items-center justify-between text-xs text-slate-400">

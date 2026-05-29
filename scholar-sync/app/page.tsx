@@ -18,7 +18,7 @@ export default function Home() {
                             <Link href="/login" className="btn-primary">
                                 Iniciar sesion
                             </Link>
-                            <Link href="/signup" className="btn-secondary">
+                            <Link href="/signUp" className="btn-secondary">
                                 Crear cuenta
                             </Link>
                         </div>

@@ -7,6 +7,7 @@ type AppHeaderProps = {
     userName: string;
     onMenuToggle: () => void;
     onProfileOpen: () => void;
+    onLogout: () => void;
 };
 
 export default function AppHeader({
@@ -14,6 +15,7 @@ export default function AppHeader({
     userName,
     onMenuToggle,
     onProfileOpen,
+    onLogout,
 }: AppHeaderProps) {
     const initials = userName
         .split(/[\s@]+/)
@@ -57,6 +59,15 @@ export default function AppHeader({
                     <span className="hidden sm:inline max-w-[140px] truncate">
                         {userName}
                     </span>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={onLogout}
+                    className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+                    aria-label="Cerrar sesion"
+                >
+                    Salir
                 </button>
             </div>
         </header>

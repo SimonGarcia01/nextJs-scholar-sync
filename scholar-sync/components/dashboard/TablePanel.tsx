@@ -10,9 +10,9 @@ type TablePanelProps = {
     canCreate: boolean;
     canUpdate: boolean;
     canDelete: boolean;
+    onEdit?: (row: TableRowData) => void;
+    onCreate?: () => void;
     onDelete?: (id: string | number) => void;
-    onCreateClick?: () => void;
-    onEditClick?: (row: TableRowData) => void;
     isLoading?: boolean;
     emptyMessage?: string;
 };
@@ -25,9 +25,9 @@ export default function TablePanel({
     canCreate,
     canUpdate,
     canDelete,
+    onEdit,
+    onCreate,
     onDelete,
-    onCreateClick,
-    onEditClick,
     isLoading = false,
     emptyMessage = "Sin registros disponibles.",
 }: TablePanelProps) {
@@ -47,7 +47,7 @@ export default function TablePanel({
                     type="button"
                     disabled={createDisabled}
                     aria-disabled={createDisabled}
-                    onClick={!createDisabled ? onCreateClick : undefined}
+                    onClick={onCreate}
                     className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
                         createDisabled
                             ? "bg-slate-200 text-slate-500 cursor-not-allowed"
@@ -105,8 +105,8 @@ export default function TablePanel({
                                     row={row}
                                     canUpdate={canUpdate}
                                     canDelete={canDelete}
+                                    onEdit={onEdit}
                                     onDelete={onDelete}
-                                    onEdit={onEditClick}
                                 />
                             ))}
                     </tbody>
