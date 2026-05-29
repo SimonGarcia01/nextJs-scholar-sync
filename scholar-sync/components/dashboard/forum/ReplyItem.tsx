@@ -12,8 +12,8 @@ export default function ReplyItem({
     onValidate,
 }: ReplyItemProps) {
     const author = reply.user?.email ?? "Desconocido";
-    const date = reply.createdAt
-        ? new Date(reply.createdAt).toLocaleDateString("es-CO", {
+    const date = reply.dateAdded
+        ? new Date(reply.dateAdded).toLocaleDateString("es-CO", {
               day: "2-digit",
               month: "short",
               year: "numeric",
@@ -24,9 +24,9 @@ export default function ReplyItem({
         <div className="border border-slate-200 rounded-xl p-4 bg-white">
             <div className="flex items-start justify-between gap-3">
                 <p className="text-sm text-slate-800 flex-1">
-                    {reply.content ?? "Sin contenido."}
+                    {reply.replyMessage ?? "Sin contenido."}
                 </p>
-                {canValidate && !reply.validated && (
+                {canValidate && !reply.isValidated && (
                     <button
                         type="button"
                         onClick={() => onValidate(reply.id)}
@@ -42,7 +42,7 @@ export default function ReplyItem({
                 {reply.approvals !== undefined && reply.approvals > 0 && (
                     <span>{reply.approvals} aprobaciones</span>
                 )}
-                {reply.validated && (
+                {reply.isValidated && (
                     <span className="font-medium text-green-600">
                         ✓ Aprobada
                     </span>

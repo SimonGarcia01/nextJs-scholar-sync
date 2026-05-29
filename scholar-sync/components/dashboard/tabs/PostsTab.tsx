@@ -9,6 +9,8 @@ export default function PostsTab({
     onDelete,
     isLoading,
     emptyMessage,
+    onCreateClick,
+    onEditClick,
 }: EntityTabProps) {
     return (
         <TablePanel
@@ -22,6 +24,8 @@ export default function PostsTab({
             onDelete={onDelete}
             isLoading={isLoading}
             emptyMessage={emptyMessage}
+            onCreateClick={onCreateClick}
+            onEditClick={onEditClick}
         />
     );
 }

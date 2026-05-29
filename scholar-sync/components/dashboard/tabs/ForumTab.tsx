@@ -11,9 +11,10 @@ import PostThread from "@/components/dashboard/forum/PostThread";
 type ForumTabProps = {
     roles: string[];
     canCreate: boolean;
+    userId: number | null;
 };
 
-export default function ForumTab({ roles, canCreate }: ForumTabProps) {
+export default function ForumTab({ roles, canCreate, userId }: ForumTabProps) {
     const [posts, setPosts] = useState<ForumPost[]>([]);
     const [allReplies, setAllReplies] = useState<ForumReply[]>([]);
     const [selectedPostId, setSelectedPostId] = useState<
@@ -72,7 +73,7 @@ export default function ForumTab({ roles, canCreate }: ForumTabProps) {
         setAllReplies((prev) =>
             prev.map((r) =>
                 String(r.id) === String(replyId)
-                    ? { ...r, validated: true }
+                    ? { ...r, isValidated: true }
                     : r
             )
         );
@@ -106,6 +107,7 @@ export default function ForumTab({ roles, canCreate }: ForumTabProps) {
                 replies={replies}
                 canValidate={canValidate}
                 canCreate={canCreate}
+                userId={userId}
                 onBack={() => setSelectedPostId(null)}
                 onReplyValidated={handleReplyValidated}
                 onReplyAdded={handleReplyAdded}

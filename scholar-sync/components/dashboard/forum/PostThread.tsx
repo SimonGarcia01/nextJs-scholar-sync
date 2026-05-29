@@ -13,6 +13,7 @@ type PostThreadProps = {
     replies: ForumReply[];
     canValidate: boolean;
     canCreate: boolean;
+    userId: number | null;
     onBack: () => void;
     onReplyValidated: (replyId: number | string) => void;
     onReplyAdded: (reply: ForumReply) => void;
@@ -23,6 +24,7 @@ export default function PostThread({
     replies,
     canValidate,
     canCreate,
+    userId,
     onBack,
     onReplyValidated,
     onReplyAdded,
@@ -35,8 +37,8 @@ export default function PostThread({
             ? `${post.user.firstName} ${post.user.lastName ?? ""}`.trim()
             : (post.user?.email ?? "Desconocido");
 
-    const date = post.createdAt
-        ? new Date(post.createdAt).toLocaleDateString("es-CO", {
+    const date = post.dateAdded
+        ? new Date(post.dateAdded).toLocaleDateString("es-CO", {
               day: "2-digit",
               month: "short",
               year: "numeric",
@@ -57,7 +59,8 @@ export default function PostThread({
         try {
             const created = await apiService.post<ForumReply>("/reply", {
                 postId: post.id,
-                content,
+                replyMessage: content,
+                userId,
             });
             onReplyAdded(created);
             setReplyContent("");
@@ -84,9 +87,9 @@ export default function PostThread({
                     <span>{author}</span>
                     {date && <span>{date}</span>}
                 </div>
-                {post.content && (
+                {post.question && (
                     <p className="mt-4 text-sm text-slate-700 leading-relaxed">
-                        {post.content}
+                        {post.question}
                     </p>
                 )}
             </div>

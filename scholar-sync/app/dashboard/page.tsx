@@ -28,6 +28,7 @@ import {
     hasAnyPermissionForEntity,
     hasPermissionForEntity,
 } from "@/lib/permissions";
+import FormModal, { type FormField } from "@/components/dashboard/FormModal";
 
 type TabConfig = {
     id: string;
@@ -433,7 +434,7 @@ const allTabs: TabConfig[] = [
         mapRow: (item, index) => {
             const data = item;
             const status = statusFromFlag(
-                data.validated,
+                data.isValidated,
                 "Aprobada",
                 "Pendiente"
             );
@@ -482,6 +483,65 @@ export default function DashboardPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [profileOpen, setProfileOpen] = useState(false);
+
+    const [modalState, setModalState] = useState<{
+        mode: "create" | "edit";
+        tabId: string;
+        rowId?: string | number;
+        initialValues?: Record<string, string | number | boolean>;
+    } | null>(null);
+
+    const tabFormFields: Record<string, FormField[]> = {
+        users: [
+            { key: "email", label: "Email", type: "email", required: true },
+            { key: "password", label: "Password", type: "password", required: true },
+            { key: "firstName", label: "Nombre", type: "text", required: true },
+            { key: "lastName", label: "Apellido", type: "text", required: true },
+            { key: "major1", label: "Carrera 1", type: "text", required: true },
+            { key: "xp", label: "XP", type: "number", required: true },
+            { key: "level", label: "Nivel", type: "number", required: true },
+        ],
+        roles: [
+            { key: "name", label: "Nombre", type: "text", required: true },
+            { key: "description", label: "Descripcion", type: "text" },
+        ],
+        permissions: [
+            { key: "name", label: "Nombre", type: "text", required: true },
+            { key: "description", label: "Descripcion", type: "text" },
+        ],
+        courses: [
+            { key: "name", label: "Nombre", type: "text", required: true },
+            { key: "credits", label: "Creditos", type: "number", required: true },
+            { key: "duration", label: "Duracion (semanas)", type: "number", required: true },
+            { key: "startDate", label: "Fecha inicio", type: "date", required: true },
+        ],
+        supplementary_sessions: [
+            { key: "topic", label: "Tema", type: "text", required: true },
+            { key: "requestedDate", label: "Fecha", type: "date", required: true },
+            { key: "virtual", label: "Virtual", type: "boolean" },
+        ],
+        experience_badges: [
+            { key: "name", label: "Nombre", type: "text", required: true },
+            { key: "minLevel", label: "Nivel minimo", type: "number", required: true },
+            { key: "message", label: "Mensaje", type: "text", required: true },
+            { key: "associatePrices", label: "Premio", type: "text" },
+        ],
+        user_badges: [
+            { key: "userId", label: "ID Usuario", type: "number", required: true },
+            { key: "experienceBadgeId", label: "ID Insignia", type: "number", required: true },
+            { key: "dateAcquired", label: "Fecha", type: "date" },
+        ],
+        posts: [
+            { key: "userId", label: "ID Usuario", type: "number", required: true },
+            { key: "title", label: "Titulo", type: "text", required: true },
+            { key: "question", label: "Pregunta", type: "textarea", required: true },
+        ],
+        replies: [
+            { key: "postId", label: "ID Post", type: "number", required: true },
+            { key: "userId", label: "ID Usuario", type: "number", required: true },
+            { key: "replyMessage", label: "Respuesta", type: "textarea", required: true },
+        ],
+    };
 
     const [tabState, setTabState] = useState<Record<string, TabState>>(() =>
         Object.fromEntries(
@@ -594,10 +654,7 @@ export default function DashboardPage() {
 
     const handleDelete = async (tabId: string, rowId: string | number) => {
         const tab = allTabs.find((item) => item.id === tabId);
-        if (!tab) {
-            return;
-        }
-
+        if (!tab) return;
         await apiService.delete(`${tab.endpoint}/${rowId}`);
         setTabState((prev) => ({
             ...prev,
@@ -606,6 +663,39 @@ export default function DashboardPage() {
                 rows: prev[tabId].rows.filter((row) => row.id !== rowId),
             },
         }));
+    };
+
+    const handleModalSubmit = async (values: Record<string, unknown>) => {
+        if (!modalState) return;
+        const tab = allTabs.find((t) => t.id === modalState.tabId);
+        if (!tab) return;
+
+        if (modalState.mode === "create") {
+            const created = await apiService.post<Record<string, unknown>>(tab.endpoint, values);
+            const newRow = tab.mapRow(created, 0);
+            setTabState((prev) => ({
+                ...prev,
+                [tab.id]: {
+                    ...prev[tab.id],
+                    rows: [...prev[tab.id].rows, newRow],
+                },
+            }));
+        } else if (modalState.mode === "edit" && modalState.rowId !== undefined) {
+            const updated = await apiService.patch<Record<string, unknown>>(
+                `${tab.endpoint}/${modalState.rowId}`,
+                values
+            );
+            const updatedRow = tab.mapRow(updated, 0);
+            setTabState((prev) => ({
+                ...prev,
+                [tab.id]: {
+                    ...prev[tab.id],
+                    rows: prev[tab.id].rows.map((r) =>
+                        r.id === modalState.rowId ? updatedRow : r
+                    ),
+                },
+            }));
+        }
     };
 
     const tabComponents: Record<
@@ -644,6 +734,7 @@ export default function DashboardPage() {
                     canCreate={
                         can("posts", "create") || can("replies", "create")
                     }
+                    userId={userId}
                 />
             );
         }
@@ -669,6 +760,30 @@ export default function DashboardPage() {
                 canUpdate={canUpdate}
                 canDelete={canDelete}
                 onDelete={(rowId) => handleDelete(selectedTab.id, rowId)}
+                onCreateClick={() =>
+                    setModalState({ mode: "create", tabId: selectedTab.id })
+                }
+                onEditClick={async (row) => {
+                    const tab = allTabs.find((t) => t.id === selectedTab.id);
+                    if (!tab) return;
+                    try {
+                        const fresh = await apiService.get<Record<string, unknown>>(
+                            `${tab.endpoint}/${row.id}`
+                        );
+                        setModalState({
+                            mode: "edit",
+                            tabId: selectedTab.id,
+                            rowId: row.id,
+                            initialValues: fresh as Record<string, string | number | boolean>,
+                        });
+                    } catch {
+                        setModalState({
+                            mode: "edit",
+                            tabId: selectedTab.id,
+                            rowId: row.id,
+                        });
+                    }
+                }}
                 isLoading={isLoading}
                 emptyMessage={emptyMessage}
             />
@@ -677,6 +792,19 @@ export default function DashboardPage() {
 
     return (
         <div className="min-h-screen bg-(--blue-50)">
+            {modalState && (
+                <FormModal
+                    title={
+                        modalState.mode === "create"
+                            ? `Crear ${allTabs.find((t) => t.id === modalState.tabId)?.label ?? ""}`
+                            : `Editar ${allTabs.find((t) => t.id === modalState.tabId)?.label ?? ""}`
+                    }
+                    fields={tabFormFields[modalState.tabId] ?? []}
+                    initialValues={modalState.initialValues}
+                    onSubmit={handleModalSubmit}
+                    onClose={() => setModalState(null)}
+                />
+            )}
             <ProfileModal
                 isOpen={profileOpen}
                 userId={userId}

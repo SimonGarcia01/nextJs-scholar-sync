@@ -8,6 +8,8 @@ export type EntityTabProps = {
     canUpdate: boolean;
     canDelete: boolean;
     onDelete: (id: string | number) => void;
+    onCreateClick?: () => void;
+    onEditClick?: (row: Record<string, string | number> & { id: string | number }) => void;
     isLoading?: boolean;
     emptyMessage?: string;
 };

@@ -9,6 +9,8 @@ export default function RolesTab({
     onDelete,
     isLoading,
     emptyMessage,
+    onCreateClick,
+    onEditClick,
 }: EntityTabProps) {
     return (
         <TablePanel
@@ -22,6 +24,8 @@ export default function RolesTab({
             onDelete={onDelete}
             isLoading={isLoading}
             emptyMessage={emptyMessage}
+            onCreateClick={onCreateClick}
+            onEditClick={onEditClick}
         />
     );
 }
