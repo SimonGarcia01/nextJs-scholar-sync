@@ -801,6 +801,7 @@ export default function DashboardPage() {
                     }
                     fields={tabFormFields[modalState.tabId] ?? []}
                     initialValues={modalState.initialValues}
+                    mode={modalState.mode}
                     onSubmit={handleModalSubmit}
                     onClose={() => setModalState(null)}
                 />

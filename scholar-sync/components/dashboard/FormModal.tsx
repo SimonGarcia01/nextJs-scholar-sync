@@ -13,6 +13,7 @@ type FormModalProps = {
     title: string;
     fields: FormField[];
     initialValues?: Record<string, string | number | boolean>;
+    mode?: "create" | "edit";
     onSubmit: (values: Record<string, unknown>) => Promise<void>;
     onClose: () => void;
 };
@@ -21,12 +22,14 @@ export default function FormModal({
     title,
     fields,
     initialValues = {},
+    mode = "create",
     onSubmit,
     onClose,
 }: FormModalProps) {
     const [values, setValues] = useState<Record<string, string>>(() =>
         Object.fromEntries(
             fields.map((f) => {
+                if (mode === "edit" && f.type === "password") return [f.key, ""];
                 const raw = initialValues[f.key];
                 if (raw === undefined || raw === null) return [f.key, ""];
                 if (f.type === "date" && typeof raw === "string" && raw.includes("T")) {
@@ -54,7 +57,7 @@ export default function FormModal({
             const parsed: Record<string, unknown> = {};
             for (const field of fields) {
                 const raw = values[field.key];
-                if (raw === "" && !field.required) continue;
+                if (raw === "" && (!field.required || (mode === "edit" && field.type === "password"))) continue;
                 if (field.type === "number") {
                     parsed[field.key] = Number(raw);
                 } else if (field.type === "boolean") {
